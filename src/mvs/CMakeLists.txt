@@ -53,6 +53,7 @@ if(CUDA_ENABLED)
         gpu_mat_ref_image.h gpu_mat_ref_image.cu
         patch_match.h patch_match.cc
         patch_match_cuda.h patch_match_cuda.cu
+        consistency_graph.h consistency_graph.cc
     )
 
     # MSVC/NVCC cannot compile the Boost unit test suite.

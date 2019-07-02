@@ -108,3 +108,4 @@ if(NOT OPENMP_ENABLED OR NOT OPENMP_FOUND)
 endif()
 
 COLMAP_ADD_LIBRARY(vlfeat ${VLFEAT_SOURCE_FILES})
+target_link_libraries(vlfeat)

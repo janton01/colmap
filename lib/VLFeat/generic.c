@@ -774,6 +774,7 @@ calling @c omp_set_num_threads() in the application. Note that:
 #include <stdio.h>
 #include <stdarg.h>
 #include <math.h>
+#include <sys/sysinfo.h>
 
 #if defined(VL_OS_WIN)
 #include <Windows.h>
@@ -1137,16 +1138,20 @@ vl_cpu_has_sse2 (void)
  ** @sa @ref threads-parallel
  **/
 
+// TODO: janton changed from omp_get_thread_limit() to built in thread library
+//       Due to compilation issues.
+// Recommended maximum threads is the number of processors the CPU has.
 vl_size
 vl_get_thread_limit (void)
 {
 #if defined(_OPENMP)
-#if _OPENMP >= 200805
-  /* OpenMP version >= 3.0 */
-  return omp_get_thread_limit() ;
-#else
-  return 0 ;
-#endif
+return get_nprocs_conf();
+// #if _OPENMP >= 200805
+//   /* OpenMP version >= 3.0 */
+//   return omp_get_thread_limit() ;
+// #else
+//   return 0 ;
+// #endif
 #else
   return 1 ;
 #endif

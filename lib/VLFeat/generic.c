@@ -774,6 +774,17 @@ calling @c omp_set_num_threads() in the application. Note that:
 #include <stdio.h>
 #include <stdarg.h>
 #include <math.h>
+<<<<<<< HEAD
+#include <sys/sysinfo.h>
+=======
+<<<<<<< HEAD
+#ifndef __APPLE__
+#include <sys/sysinfo.h>
+#endif
+=======
+#include <sys/sysinfo.h>
+>>>>>>> 69ba01f96bd9fb947077dfdb49d432f1d5e971c4
+>>>>>>> Changed CMake to Compile as One Static Lib
 
 #if defined(VL_OS_WIN)
 #include <Windows.h>
@@ -1137,21 +1148,28 @@ vl_cpu_has_sse2 (void)
  ** @sa @ref threads-parallel
  **/
 
+// TODO: janton changed from omp_get_thread_limit() to built in thread library
+//       Due to compilation issues.
+// Recommended maximum threads is the number of processors the CPU has.
 vl_size
 vl_get_thread_limit (void)
 {
 #if defined(_OPENMP)
+#ifdef __APPLE__
+
 #if _OPENMP >= 200805
-  /* OpenMP version >= 3.0 */
+/* OpenMP version >= 3.0 */
   return omp_get_thread_limit() ;
 #else
-  return 0 ;
+   return 0 ;
+#endif
+#else
+  return get_nprocs_conf();
 #endif
 #else
   return 1 ;
 #endif
 }
-
 /** @brief Get the maximum number of computational threads used by VLFeat.
  ** @return number of threads.
  **

@@ -36,11 +36,18 @@ project(COLMAP)
 set(COLMAP_VERSION "3.6")
 set(COLMAP_VERSION_NUMBER "3600")
 
+# TODO: COLMAP Requires c++11. Port to newer c++ version
+set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
+
 
 ################################################################################
 # Include CMake dependencies
 ################################################################################
 
+set(ceres_DIR ${NOD_ROOT}/cmake/)
+set(Glog_DIR ${NOD_ROOT}/cmake/)
+set(Eigen3_DIR ${NOD_ROOT}/cmake/)
+set(Glew_DIR ${NOD_ROOT}/cmake/)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(CheckCXXCompilerFlag)
@@ -66,6 +73,8 @@ option(BOOST_STATIC "Whether to enable static boost library linker flags" ON)
 set(CUDA_ARCHS "Auto" CACHE STRING "List of CUDA architectures for which to \
 generate code, e.g., Auto, All, Maxwell, Pascal, ...")
 
+set(CUDA_ENABLED ON) # TODO FIX!
+
 if(TESTS_ENABLED)
     enable_testing()
 endif()
@@ -84,8 +93,8 @@ if(OPENMP_ENABLED)
     find_package(OpenMP QUIET)
 endif()
 
-find_package(Ceres REQUIRED)
 
+# NOT IN COLMAP THIRD PARTY
 find_package(Boost REQUIRED COMPONENTS
              program_options
              filesystem
@@ -94,22 +103,17 @@ find_package(Boost REQUIRED COMPONENTS
              system
              unit_test_framework)
 
-find_package(Eigen3 REQUIRED)
-
-find_package(FreeImage REQUIRED)
-
-find_package(Glog REQUIRED)
+find_package(FreeImage REQUIRED )
 
 find_package(OpenGL REQUIRED)
-find_package(Glew REQUIRED)
-find_package(Git)
 
-if (CGAL_ENABLED)
-  find_package(CGAL QUIET)
-endif()
+find_package(CGAL QUIET)
+
 
 set(CUDA_MIN_VERSION "7.0")
+
 if(CUDA_ENABLED)
+    message("CUDA ENABLED")
     find_package(CUDA ${CUDA_MIN_VERSION} QUIET)
 endif()
 
@@ -128,7 +132,17 @@ if(CGAL_FOUND)
     message(STATUS "  Libraries : ${CGAL_LIBRARY}")
 endif()
 
+# Generate source file with version definitions.
+include(GenerateVersionDefinitions)
 
+# PACKAGES IN THIRDPARTY NOD
+find_package(ceres REQUIRED NO_MODULE CONFIGS ceres.cmake)
+
+find_package(Eigen3 REQUIRED NO_MODULE CONFIGS eigen.cmake)
+
+find_package(Glog REQUIRED NO_MODULE CONFIGS glog.cmake)
+
+find_package(Glew REQUIRED NO_MODULE CONFIGS glew.cmake)
 ################################################################################
 # Compiler specific configuration
 ################################################################################
@@ -248,21 +262,39 @@ endif()
 # Enable automatic compilation of Qt resource files.
 set(CMAKE_AUTORCC ON)
 
+################################################################################
+# Generate source groups for Visual Studio, XCode, etc.
+################################################################################
+
+
+# Add all of the source files to a regular library target, as using a custom
+# target does not allow us to set its C++ include directories (and thus
+# intellisense can't find any of the included files).
+add_subdirectory(lib) # builds colmap internal libraries
+add_subdirectory(src) # populates COLMAP sources variable with the non-lib source files
+add_library(colmap STATIC
+    ${COLMAP_SOURCES}
+)
+
+# Prevent the library from being compiled automatically.
+
+#[[set_target_properties(
+    colmap_lib PROPERTIES
+    EXCLUDE_FROM_ALL 1
+    EXCLUDE_FROM_DEFAULT_BUILD 1)]]
+
 
 ################################################################################
 # Add sources
 ################################################################################
 
-# Generate source file with version definitions.
-include(GenerateVersionDefinitions)
 
 set(COLMAP_INCLUDE_DIRS
     ${Boost_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIRS}
-    ${GLOG_INCLUDE_DIRS}
+    ${GLOG_ROOT}
     ${FREEIMAGE_INCLUDE_DIRS}
-    ${CERES_INCLUDE_DIRS}
-    ${GLEW_INCLUDE_DIRS}
+    ${CERES_ROOT}
     ${Qt5Core_INCLUDE_DIRS}
     ${Qt5OpenGL_INCLUDE_DIRS}
     ${Qt5Widgets_INCLUDE_DIRS}
@@ -278,9 +310,9 @@ set(COLMAP_EXTERNAL_LIBRARIES
     ${Boost_PROGRAM_OPTIONS_LIBRARY}
     ${Boost_REGEX_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}
-    ${GLOG_LIBRARIES}
+    glog
     ${FREEIMAGE_LIBRARIES}
-    ${CERES_LIBRARIES}
+    ceres
     ${OPENGL_gl_LIBRARY}
     ${OPENGL_glu_LIBRARY}
     ${Qt5Core_LIBRARIES}
@@ -299,7 +331,6 @@ if(UNIX)
 endif()
 
 set(COLMAP_INTERNAL_LIBRARIES
-    colmap
     flann
     graclus
     lsd
@@ -310,8 +341,9 @@ set(COLMAP_INTERNAL_LIBRARIES
     vlfeat
 )
 
+
 if(CUDA_ENABLED)
-    list(APPEND COLMAP_INTERNAL_LIBRARIES colmap_cuda colmap)
+    list(APPEND COLMAP_INTERNAL_LIBRARIES colmap_cuda)
 endif()
 
 set(COLMAP_LIBRARIES
@@ -319,89 +351,35 @@ set(COLMAP_LIBRARIES
     ${COLMAP_EXTERNAL_LIBRARIES}
 )
 
-include_directories(
-    lib
-    src
+target_include_directories(colmap PUBLIC
+    ${COLMAP_ROOT}/src
     ${COLMAP_INCLUDE_DIRS}
 )
 
-link_directories(${COLMAP_LINK_DIRS})
+target_link_libraries(colmap
+                      ${COLMAP_LIBRARIES} ${OpenMP_CXX_LIBRARIES})
 
-add_subdirectory(lib)
-add_subdirectory(src)
+# add_executable(colmap_exe
+#               ${PROJECT_SOURCE_DIR}/src/exe/colmap.cc)
 
-
-################################################################################
-# Generate source groups for Visual Studio, XCode, etc.
-################################################################################
-
-COLMAP_ADD_SOURCE_DIR(lib/FLANN LIB_FLANN_SRCS *.h *.cpp *.hpp *.cu)
-COLMAP_ADD_SOURCE_DIR(lib/Graclus LIB_GRACLUS_SRCS *.h *.c)
-COLMAP_ADD_SOURCE_DIR(lib/LSD LIB_LSD_SRCS *.h *.c)
-COLMAP_ADD_SOURCE_DIR(lib/PBA LIB_PBA_SRCS *.h *.cpp *.cu)
-COLMAP_ADD_SOURCE_DIR(lib/PoissonRecon LIB_POISSON_RECON_SRCS *.h *.cpp *.inl)
-COLMAP_ADD_SOURCE_DIR(lib/SiftGPU LIB_SIFT_GPU_SRCS *.h *.cpp *.cu)
-COLMAP_ADD_SOURCE_DIR(lib/SQLite LIB_SQLITE_SRCS *.h *.c)
-COLMAP_ADD_SOURCE_DIR(lib/VLFeat LIB_VLFEAT_SRCS *.h *.c *.tc)
-
-COLMAP_ADD_SOURCE_DIR(src/base BASE_SRCS *.h *.cc)
-COLMAP_ADD_SOURCE_DIR(src/controllers CONTROLLERS_SRCS *.h *.cc)
-COLMAP_ADD_SOURCE_DIR(src/estimators ESTIMATORS_SRCS *.h *.cc)
-COLMAP_ADD_SOURCE_DIR(src/exe EXE_SRCS *.h *.cc)
-COLMAP_ADD_SOURCE_DIR(src/feature FEATURE_SRCS *.h *.cc)
-COLMAP_ADD_SOURCE_DIR(src/mvs MVS_SRCS *.h *.cc *.cu)
-COLMAP_ADD_SOURCE_DIR(src/optim OPTIM_SRCS *.h *.cc)
-COLMAP_ADD_SOURCE_DIR(src/retrieval RETRIEVAL_SRCS *.h *.cc)
-COLMAP_ADD_SOURCE_DIR(src/sfm SFM_SRCS *.h *.cc)
-COLMAP_ADD_SOURCE_DIR(src/tools TOOLS_SRCS *.h *.cc)
-COLMAP_ADD_SOURCE_DIR(src/ui UI_SRCS *.h *.cc)
-COLMAP_ADD_SOURCE_DIR(src/util UTIL_SRCS *.h *.cc)
-
-# Add all of the source files to a regular library target, as using a custom
-# target does not allow us to set its C++ include directories (and thus
-# intellisense can't find any of the included files).
-add_library(
-    ${COLMAP_SRC_ROOT_FOLDER}
-    ${LIB_FLANN_SRCS}
-    ${LIB_GRACLUS_SRCS}
-    ${LIB_LSD_SRCS}
-    ${LIB_PBA_SRCS}
-    ${LIB_POISSON_RECON_SRCS}
-    ${LIB_SIFT_GPU_SRCS}
-    ${LIB_SQLITE_SRCS}
-    ${LIB_VLFEAT_SRCS}
-    ${BASE_SRCS}
-    ${CONTROLLERS_SRCS}
-    ${ESTIMATORS_SRCS}
-    ${EXE_SRCS}
-    ${FEATURE_SRCS}
-    ${MVS_SRCS}
-    ${OPTIM_SRCS}
-    ${RETRIEVAL_SRCS}
-    ${SFM_SRCS}
-    ${TOOLS_SRCS}
-    ${UI_SRCS}
-    ${UTIL_SRCS}
-)
-
-# Prevent the library from being compiled automatically.
-set_target_properties(
-    ${COLMAP_SRC_ROOT_FOLDER} PROPERTIES
-    EXCLUDE_FROM_ALL 1
-    EXCLUDE_FROM_DEFAULT_BUILD 1)
-
-
+#[[target_include_directories(colmap_exe PUBLIC
+                        ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(colmap_exe colmap)]]
 ################################################################################
 # Install and uninstall scripts
 ################################################################################
 
 # Install header files.
+install(TARGETS colmap DESTINATION bin)
+
+#[[
 install(DIRECTORY src/
         DESTINATION include/colmap
         FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY lib/
         DESTINATION include/colmap/lib
         FILES_MATCHING REGEX ".*[.]h|.*[.]hpp|.*[.]inl")
+]]
 
 # Generate and install CMake configuration.
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeConfig.cmake.in"
@@ -435,5 +413,8 @@ endif()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeUninstall.cmake.in"
                "${CMAKE_CURRENT_BINARY_DIR}/CMakeUninstall.cmake"
                IMMEDIATE @ONLY)
-add_custom_target(uninstall COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/CMakeUninstall.cmake)
-set_target_properties(uninstall PROPERTIES FOLDER ${CMAKE_TARGETS_ROOT_FOLDER})
+
+if (NOT TARGET uninstall)
+    add_custom_target(uninstall COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/CMakeUninstall.cmake)
+    set_target_properties(uninstall PROPERTIES FOLDER ${CMAKE_TARGETS_ROOT_FOLDER})
+endif ()

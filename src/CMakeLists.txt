@@ -40,7 +40,6 @@ endif()
 add_subdirectory(base)
 add_subdirectory(controllers)
 add_subdirectory(estimators)
-add_subdirectory(exe)
 add_subdirectory(feature)
 add_subdirectory(mvs)
 add_subdirectory(optim)
@@ -50,7 +49,7 @@ add_subdirectory(tools)
 add_subdirectory(ui)
 add_subdirectory(util)
 
-COLMAP_ADD_LIBRARY(colmap ${COLMAP_SOURCES})
+set(COLMAP_SOURCES ${COLMAP_SOURCES} PARENT_SCOPE)
 
 if(CUDA_ENABLED)
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} --use_fast_math")
@@ -68,4 +67,7 @@ if(CUDA_ENABLED)
     endif()
 
     COLMAP_ADD_CUDA_LIBRARY(colmap_cuda ${COLMAP_CUDA_SOURCES})
+    target_include_directories(colmap_cuda PUBLIC
+                            ${PROJECT_SOURCE_DIR}/src
+                            ${EIGEN3_INCLUDE_DIRS})
 endif()

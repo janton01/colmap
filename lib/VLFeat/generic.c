@@ -775,6 +775,7 @@ calling @c omp_set_num_threads() in the application. Note that:
 #include <stdarg.h>
 #include <math.h>
 <<<<<<< HEAD
+<<<<<<< HEAD
 #include <sys/sysinfo.h>
 =======
 <<<<<<< HEAD
@@ -785,6 +786,9 @@ calling @c omp_set_num_threads() in the application. Note that:
 #include <sys/sysinfo.h>
 >>>>>>> 69ba01f96bd9fb947077dfdb49d432f1d5e971c4
 >>>>>>> Changed CMake to Compile as One Static Lib
+=======
+#include <sys/sysinfo.h>
+>>>>>>> 69ba01f96bd9fb947077dfdb49d432f1d5e971c4
 
 #if defined(VL_OS_WIN)
 #include <Windows.h>
